@@ -11,8 +11,8 @@ from utils.Utils import *
 def get_attention_maps(feature_maps):
     attention_maps = tf.nn.relu(feature_maps)
     
-    # max_value = tf.math.reduce_max(heatmaps, axis = [1, 2])
-    # heatmaps = heatmaps - min_value) / (max_value - min_value) * 255.
+    max_value = tf.math.reduce_max(attention_maps, axis = [1, 2]) + 1e-8
+    attention_maps = attention_maps / max_value[:, tf.newaxis, tf.newaxis, :] * 255.
     
     return tf.identity(attention_maps, name = 'attention_maps')
 
@@ -22,7 +22,6 @@ def Classifier(x, is_training, option):
     
     with tf.contrib.slim.arg_scope(vgg16.vgg_arg_scope()):
         x = vgg16.vgg_16(x, num_classes=1000, is_training=is_training, dropout_keep_prob=0.5)
-        
         log_print('[i] vgg16 feature_maps = {}'.format(x), option['log_txt_path'])
     
     with tf.variable_scope('Classifier', reuse = tf.AUTO_REUSE, custom_getter = None):
@@ -34,8 +33,6 @@ def Classifier(x, is_training, option):
         feature_maps = tf.layers.conv2d(x, option['classes'], [1, 1], 1, name = 'feature_maps')
         attention_maps = get_attention_maps(feature_maps)
 
-        log_print('[i] attention_maps = {}'.format(attention_maps), option['log_txt_path'])
-        
         logits = tf.reduce_mean(feature_maps, axis = [1, 2], name = 'GAP')
         predictions = tf.nn.sigmoid(logits, name = 'outputs')
     

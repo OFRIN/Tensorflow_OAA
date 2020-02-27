@@ -19,7 +19,7 @@ import multiprocessing as mp
 from core.Config_OAA import *
 from core.Classifier import *
 
-from core.Online_Attention_Accumulation_history import *
+from core.Online_Attention_Accumulation import *
 
 from utils.Utils import *
 from utils.Timer import *
@@ -275,8 +275,6 @@ if __name__ == '__main__':
     oaa_time = 0
     oaa_time_list = []
 
-    best_valid_accuracy = 0
-    
     oaa_ops = [image_paths_op, predictions_op, label_op, attention_maps_op]
     train_ops = [train_op, loss_op, class_loss_op, l2_reg_loss_op, accuracy_op, train_summary_op]
 
@@ -331,65 +329,3 @@ if __name__ == '__main__':
         if iter % flags.valid_iteration == 0:
             saver.save(sess, ckpt_format.format(iter))   
             
-            # valid_time = time.time()
-            # valid_accuracy_dic = {}
-
-            # for key in ['positive', 'negative']:
-            #     valid_accuracy_list = []
-            #     valid_dataset = valid_dic[key]
-            
-            #     valid_iteration = len(valid_dataset) // flags.batch_size
-            #     for i in range(valid_iteration):
-            #         sys.stdout.write('\rValidation = [{}/{}]'.format(i + 1, valid_iteration))
-            #         sys.stdout.flush()
-
-            #         batch_dataset = valid_dataset[i * flags.batch_size : (i + 1) * flags.batch_size]
-
-            #         batch_image_data = []
-            #         batch_label_data = []
-
-            #         for image_path, flame, smoke in batch_dataset:
-            #             image = imread(image_path)    
-            #             if image is None:
-            #                 print('[!] validation (imread_list) : {}'.format(image_path))
-            #                 continue
-                            
-            #             image = cv2.resize(image, (flags.max_image_size, flags.max_image_size), interpolation = cv2.INTER_CUBIC)
-                                
-            #             batch_image_data.append(image.astype(np.float32))
-            #             batch_label_data.append([int(flame), int(smoke)])
-
-            #         _feed_dict = {
-            #             valid_image_var : batch_image_data,
-            #             valid_label_var : batch_label_data,
-            #         }
-            #         accuracy = sess.run(valid_accuracy_op, feed_dict = _feed_dict)
-            #         valid_accuracy_list.append(accuracy)
-                
-            #     valid_accuracy = np.mean(valid_accuracy_list)
-            #     valid_accuracy_dic[key] = valid_accuracy
-
-            # total_valid_accuracy = np.mean([valid_accuracy_dic[key] for key in ['positive', 'negative']])
-            
-            # summary = sess.run(valid_summary_op, feed_dict = {
-            #     valid_summary_dic['Accuracy/Validation_Accuracy'] : total_valid_accuracy,
-            #     valid_summary_dic['Accuracy/Validation_Positive_Accuracy'] : valid_accuracy_dic.positive,
-            #     valid_summary_dic['Accuracy/Validation_Negative_Accuracy'] : valid_accuracy_dic.negative,
-            # })
-            # train_writer.add_summary(summary, iter)
-            
-            # if best_valid_accuracy <= total_valid_accuracy:
-            #     best_valid_accuracy = total_valid_accuracy
-            #     saver.save(sess, ckpt_format.format(iter))            
-            
-            # train_time = time.time()
-            # valid_time = int(time.time() - valid_time)
-
-            # print()
-            # log_print('[i] iter = {}, total_valid_accuracy = {:.2f}, best_valid_accuracy = {:.2f}, valid_time = {}sec'.format(iter, total_valid_accuracy, best_valid_accuracy, valid_time), log_txt_path)
-
-    # saver.save(sess, ckpt_format.format('end'))    
-
-    np.save(flags.OAA_dir + 'OAA_count.npy', [[key, oaa_updater.count_dic[key]] for key in oaa_updater.count_dic.keys()])
-
-    

@@ -12,17 +12,9 @@ class Online_Attention_Accumulation:
 
         self.classes = len(option['class_names'])
         self.class_names = option['class_names']
-
-        self.count_dic = {}
-
+        
         if not os.path.isdir(self.oaa_dir):
             os.makedirs(self.oaa_dir)
-    
-    def normalize(self, class_map):
-        max_value = np.max(class_map)
-        class_map = class_map / (max_value + 1e-8) * 255
-
-        return class_map.astype(np.uint8)
     
     def update(self, image_paths, predictions, labels, attention_maps):
         
@@ -41,13 +33,7 @@ class Online_Attention_Accumulation:
                 if not correct[class_index]:
                     continue
                 
-                class_attention_map = self.normalize(attention_map[..., class_index])
-                # class_attention_map = cv2.resize(class_attention_map, (224, 224))
-                
-                try:
-                    self.count_dic[oaa_image_name] += 1
-                except KeyError:
-                    self.count_dic[oaa_image_name] = 1
+                class_attention_map = attention_map[..., class_index].astype(np.uint8)
                 
                 oaa_image_path = self.oaa_dir + oaa_image_name.replace('.jpg', '_{}.png'.format(self.class_names[class_index]))
                 # print(oaa_image_path)
