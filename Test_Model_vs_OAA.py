@@ -8,11 +8,6 @@ import tensorflow as tf
 from core.Config_OAA import *
 from core.Classifier import *
 
-def normalize(class_map):
-    max_value = np.max(class_map)
-    class_map = class_map / (max_value + 1e-8) * 255
-    return class_map.astype(np.uint8)
-
 # 1. dataset
 flags = get_config()
 
@@ -41,16 +36,10 @@ sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 
 saver = tf.train.Saver()
-# saver.restore(sess, './experiments/model/VGG16-JSH-2020-02-26-15h07m00s/20000.ckpt')    # history
-saver.restore(sess, './experiments/model/VGG16-JSH-2020-02-26-14h50m17s/20000.ckpt')      # 0.9
-# saver.restore(sess, './experiments/model/VGG16-JSH-2020-02-25-11h14m34s/10000.ckpt')      # 0.6
+saver.restore(sess, './experiments/model/VGG16-JSH-2020-02-26-14h50m17s/20000.ckpt')
 
-# oaa_dir = './dataset/OAA_total/'
-oaa_dir = './dataset/OAA_initialization_0.9/'
-# oaa_dir = './dataset/OAA_initialization_0.6/'
-
-result_tag = '_OAA_0.9.jpg'
-# result_tag = '_OAA_0.6.jpg'
+oaa_dir = './dataset/OAA/'
+result_tag = '_OAA.jpg'
 
 def merge(images):
     length = len(images)
@@ -62,15 +51,24 @@ def merge(images):
 
     return merge_image
 
+def set_demo_image(demo_image):
+    demo_image = cv2.resize(demo_image, (flags.image_size, flags.image_size))
+    demo_image = cv2.applyColorMap(demo_image, cv2.COLORMAP_JET)
+    return demo_image
+
+def set_text(demo_image, text):
+    text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 0.7, 2)
+    cv2.rectangle(demo_image, (0, 0), (text_size[0], text_size[1] + 5), (0, 255, 0), cv2.FILLED)
+    cv2.putText(demo_image, text, (0, text_size[1]), cv2.FONT_HERSHEY_DUPLEX, 0.7, (0, 0, 0), 2)
+    return demo_image
+
 for image_path, label in train_dic['daisy']:
     image_name = os.path.basename(image_path).replace('.jpg', '')
 
     image = cv2.imread(image_path)
     image = cv2.resize(image, (flags.image_size, flags.image_size))
     
-    # oaa_image_name = image_path.replace(flags.root_dir, '').replace('.jpg', '_daisy.npy') # history
-    oaa_image_name = image_path.replace(flags.root_dir, '').replace('.jpg', '_daisy.png') # 0.9
-    # oaa_image_name = image_path.replace(flags.root_dir, '').replace('.jpg', '_daisy.jpg') # 0.6
+    oaa_image_name = image_path.replace(flags.root_dir, '').replace('.jpg', '_daisy.npy') # history
     oaa_image_path = oaa_dir + oaa_image_name
 
     preds, attention_maps = sess.run([predictions_op, attention_maps_op], feed_dict = {image_var : [image.astype(np.float32)]})
@@ -80,36 +78,17 @@ for image_path, label in train_dic['daisy']:
 
     print(pred, label)
     
-    for i, class_name in enumerate(class_names):
-        cam = normalize(attention_map[..., i].copy())
-        cam = cv2.resize(cam, (flags.image_size, flags.image_size))
-        cam = cv2.applyColorMap(cam, cv2.COLORMAP_JET)
-        cam = cv2.addWeighted(image, 0.5, cam, 0.5, 0.0)
+    cam = set_demo_image(attention_map[..., 0].astype(np.uint8))
+    cam = cv2.addWeighted(image, 0.5, cam, 0.5, 0.0)
+    cam = set_text(cam, '# CAM')
 
-        if class_name == 'daisy':
-            break
-
-    oaa = cv2.imread(oaa_image_path)
-    oaa = cv2.resize(oaa, (flags.image_size, flags.image_size))
-    oaa = cv2.applyColorMap(oaa, cv2.COLORMAP_JET)
+    oaa = set_demo_image(cv2.imread(oaa_image_path))
     oaa = cv2.addWeighted(image, 0.5, oaa, 0.5, 0.0)
+    oaa = set_text(oaa, '# OAA')
     
-    text = '# CAM'
-    text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 0.7, 2)
-    cv2.rectangle(cam, (0, 0), (text_size[0], text_size[1] + 5), (0, 255, 0), cv2.FILLED)
-    cv2.putText(cam, text, (0, text_size[1]), cv2.FONT_HERSHEY_DUPLEX, 0.7, (0, 0, 0), 2)
-
-    text = '# OAA'
-    text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, 0.7, 2)
-    cv2.rectangle(oaa, (0, 0), (text_size[0], text_size[1] + 5), (0, 255, 0), cv2.FILLED)
-    cv2.putText(oaa, text, (0, text_size[1]), cv2.FONT_HERSHEY_DUPLEX, 0.7, (0, 0, 0), 2)
-
     merge_image = merge([image, cam, oaa])
 
-    cv2.imshow('merge_image', merge_image)
-    # cv2.imshow(class_name, cam)
-    # cv2.imshow('OAA', oaa)
-    # cv2.imshow('show', image)
+    cv2.imshow('show_image', merge_image)
     cv2.waitKey(0)
 
     cv2.imwrite('./results/' + image_name + result_tag, merge_image)
